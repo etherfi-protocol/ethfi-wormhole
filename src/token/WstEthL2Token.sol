@@ -7,17 +7,20 @@ import {ERC20Upgradeable} from
     "openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20BurnableUpgradeable} from
     "openzeppelin-contracts-upgradeable/contracts/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+import {ERC20VotesUpgradeable} from 
+    "openzeppelin-contracts-upgradeable/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import {UUPSUpgradeable} from
     "openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {INttToken} from "@wormhole-foundation/native_token_transfer/interfaces/INttToken.sol";
 
-/// @title WstEthL2Token
+/// @title EthfiL2Token
 /// @notice A UUPS upgradeable token with access controlled minting and burning.
-contract WstEthL2Token is
+contract EthfiL2Token is
     INttToken,
     UUPSUpgradeable,
     ERC20Upgradeable,
     ERC20BurnableUpgradeable,
+    ERC20VotesUpgradeable,
     OwnableUpgradeable
 {
     // =============== Storage ==============================================================
@@ -26,7 +29,7 @@ contract WstEthL2Token is
         address _minter;
     }
 
-    bytes32 private constant MINTER_SLOT = bytes32(uint256(keccak256("wsteth.minter")) - 1);
+    bytes32 private constant MINTER_SLOT = bytes32(uint256(keccak256("ethfi.minter")) - 1);
 
     // =============== Storage Getters/Setters ==============================================
 
@@ -70,7 +73,7 @@ contract WstEthL2Token is
         _disableInitializers();
     }
 
-    /// @notice A one-time configuration method meant to be called immediately upon the deployment of `WstEthL2Token`. It sets
+    /// @notice A one-time configuration method meant to be called immediately upon the deployment of `EthfiL2Token`. It sets
     /// up the token's name, symbol, and owner
     function initialize(
         string memory _name,
@@ -115,4 +118,11 @@ contract WstEthL2Token is
     }
 
     function _authorizeUpgrade(address /* newImplementation */ ) internal view override onlyOwner {}
+
+    function _update(address from, address to, uint256 value)
+        internal
+        override(ERC20Upgradeable, ERC20VotesUpgradeable)
+    {
+        super._update(from, to, value);
+    }
 }
