@@ -18,7 +18,7 @@ contract DeployEthfiL2 is Script {
         address deployer = vm.addr(privateKey);
         vm.startBroadcast(privateKey);
         
-        bytes SALT = keccak256(abi.encodePacked(deployer, TOKEN_NAME, TOKEN_SYMBOL));
+        bytes32 SALT = keccak256(abi.encodePacked(deployer, TOKEN_NAME, TOKEN_SYMBOL));
 
         EthfiL2Token impl = new EthfiL2Token{salt: SALT}();
         ERC1967Proxy proxy = new ERC1967Proxy{salt: SALT}(address(impl), "");

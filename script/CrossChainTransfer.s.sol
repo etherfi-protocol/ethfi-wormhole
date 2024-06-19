@@ -2,20 +2,13 @@
 pragma solidity >=0.8.8 <0.9.0;
 
 import {Script, console} from "forge-std/Script.sol";
-
-import {NttManager} from "../src/NttManager/NttManager.sol";
+import {NttManager} from "@wormhole-foundation/native_token_transfer/NttManager/NttManager.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-address constant MAINNET_NTT_MANAGER = 0x344169Cc4abE9459e77bD99D13AA8589b55b6174;
-address constant MAINNET_TRANSCEIVER = 0x3bf4AebcaD920447c5fdD6529239Ab3922ce2186;
-address constant MAINNET_ETHFI = 0xFe0c30065B384F05761f15d0CC899D4F9F9Cc0eB;
+import {NttConstants} from "../utils/constants.sol";
 
-address constant ARB_NTT_MANAGER = 0x90A82462258F79780498151EF6f663f1D4BE4E3b;
-address constant ARB_TRANSCEIVER = 0x4386e36B96D437b0F1C04A35E572C10C6627d88a;
-address constant ARB_ETHFI = 0x7189fb5B6504bbfF6a852B13B7B82a3c118fDc27;
-
-contract TransferCrossChain is Script {
+contract TransferCrossChain is Script, NttConstants {
     function run() public {
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(privateKey);
