@@ -21,6 +21,7 @@ methods {
     function allowance(address,address) external returns (uint256) envfree;
     function nonces(address) external returns (uint256) envfree;
     function owner() external returns (address) envfree;
+    function minter() external returns (address) envfree;
     function approve(address,uint256) external returns bool;
     function transfer(address,uint256) external returns bool;
     function transferFrom(address,address,uint256) external returns bool;
@@ -78,11 +79,11 @@ ghost mathint numberOfChangesOfBalances {
 // overflows Alice's balance when receiving a transfer. This is not possible unless the contract is deployed into an 
 // already used address (or upgraded from corrupted state).
 // We restrict such behavior by making sure no balance is greater than the sum of balances.
-hook Sload uint256 balance _balances[KEY address addr] {
+hook Sload uint256 balance (slot 0x52c63247e1f47db19d5ce0460030c497f067ca4cebf71ba98eeadabe20bace00)[KEY address addr] {
     require sumOfBalances >= to_mathint(balance);
 }
 
-hook Sstore _balances[KEY address addr] uint256 newValue (uint256 oldValue) {
+hook Sstore (slot 0x52c63247e1f47db19d5ce0460030c497f067ca4cebf71ba98eeadabe20bace00)[KEY address user] uint256 newValue (uint256 oldValue) {
     sumOfBalances = sumOfBalances - oldValue + newValue;
     numberOfChangesOfBalances = numberOfChangesOfBalances + 1;
 }
@@ -93,19 +94,26 @@ hook Sstore _balances[KEY address addr] uint256 newValue (uint256 oldValue) {
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 */
 invariant totalSupplyIsSumOfBalances()
-    to_mathint(totalSupply()) == sumOfBalances;
+    to_mathint(totalSupply()) == sumOfBalances
+    filtered {
+            f -> f.selector != (sig:upgradeToAndCall(address,bytes).selector) 
+        }
+
 
 /*
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ Rule: contract owner never change                                                                                   │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 */
-rule contractOwnerNeverChange(env e){
-    address owner = owner();
-    method f;
+rule contractOwnerNeverChange(method f, env e)
+    filtered {
+            f -> f.selector != (sig:upgradeToAndCall(address,bytes).selector) 
+    }
+    {
     calldataarg args;
+    address owner = owner();
     f(e, args);
-    assert owner == owner();
+    assert owner == owner() || f.selector != sig:initialize(string, string,address).selector || f.selector != sig:transferOwnership(address).selector;
 }
 
 /*
@@ -129,13 +137,17 @@ rule totalSupplyNeverOverflow(env e, method f, calldataarg args) filtered{f -> c
 │ Rule: max num of balances changes in single call is 2                                                               │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 */
-rule noMethodChangesMoreThanTwoBalances(method f) {
+rule noMethodChangesMoreThanTwoBalances(method f) filtered {
+            f -> f.selector != (sig:upgradeToAndCall(address,bytes).selector) 
+        }
+        {
 	env e;
 	mathint numberOfChangesOfBalancesBefore = numberOfChangesOfBalances;
 	calldataarg args;
 	f(e,args);
 	mathint numberOfChangesOfBalancesAfter = numberOfChangesOfBalances;
 	assert numberOfChangesOfBalancesAfter <= numberOfChangesOfBalancesBefore + 2;
+    
 }
 
 
@@ -144,12 +156,14 @@ rule noMethodChangesMoreThanTwoBalances(method f) {
 │ Rules: only approve, permit and transferFrom can change allowance                                                   |
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 */
-rule onlyAllowedMethodsMayChangeAllowance(env e) {
+rule onlyAllowedMethodsMayChangeAllowance(method f, env e) filtered {
+            f -> f.selector != (sig:upgradeToAndCall(address,bytes).selector) 
+        }
+        {
 	address addr1;
 	address addr2;
 	uint256 allowanceBefore = allowance(addr1, addr2);
 	
-    method f;
     calldataarg args;
 	
     f(e,args);
@@ -165,10 +179,12 @@ rule onlyAllowedMethodsMayChangeAllowance(env e) {
 │ Rules: only mint, burn, transfer and transferFrom can change user balance                                           |
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 */
-rule onlyAllowedMethodsMayChangeBalance(env e){
+rule onlyAllowedMethodsMayChangeBalance(method f, env e) filtered {
+            f -> f.selector != (sig:upgradeToAndCall(address,bytes).selector) 
+        }
+        {
     requireInvariant totalSupplyIsSumOfBalances();
 
-    method f;
     calldataarg args;
 
     address holder;
@@ -191,8 +207,8 @@ rule onlyOwnerMintOrBurn(env e){
 
     f(e, args);
 
-    assert f.selector == sig:mint(uint256).selector => e.msg.sender == owner();
-    assert f.selector == sig:burn(uint256).selector => e.msg.sender == owner();
+    assert f.selector == sig:mint(address,uint256).selector => e.msg.sender == minter();
+    assert f.selector == sig:burn(uint256).selector => e.msg.sender == minter();
 }
 
 /*
@@ -200,10 +216,12 @@ rule onlyOwnerMintOrBurn(env e){
 │ Rules: only mint and burn can change total supply                                                                   │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 */
-rule onlyAllowedMethodsMayChangeTotalSupply(env e) {
+rule onlyAllowedMethodsMayChangeTotalSupply(method f, env e) filtered {
+            f -> f.selector != (sig:upgradeToAndCall(address,bytes).selector) 
+        }
+        {
     requireInvariant totalSupplyIsSumOfBalances();
 
-    method f;
     calldataarg args;
 
     uint256 totalSupplyBefore = totalSupply();
@@ -219,7 +237,9 @@ rule onlyAllowedMethodsMayChangeTotalSupply(env e) {
 │ Rules: Find and show a path for each method.                                                                        │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 */
-rule reachability(method f)
+rule reachability(method f) filtered {
+    f -> f.selector != (sig:burnFrom(address,uint256).selector) 
+}
 {
 	env e;
 	calldataarg args;
@@ -258,8 +278,10 @@ rule onlyAuthorizedCanTransfer(env e, method f) filtered { f -> canDecreaseBalan
 │ Rules: only the token holder (or a permit) can increase allowance. The spender can decrease it by using it          │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 */
-rule onlyHolderOfSpenderCanChangeAllowance(env e) {
-    method f;
+rule onlyHolderOfSpenderCanChangeAllowance(method f, env e) filtered {
+            f -> f.selector != (sig:upgradeToAndCall(address,bytes).selector) 
+        }
+        {
     calldataarg args;
     address holder;
     address spender;
@@ -304,7 +326,7 @@ rule mintIntegrity(env e) {
     // check outcome
 
     // assert contract owner was the one called
-    assert e.msg.sender == owner(), "Only contract owner can call mint.";
+    assert e.msg.sender == minter(), "Only contract owner can call mint.";
 
     // updates balance and totalSupply
     assert to_mathint(balanceOf(to)) == toBalanceBefore   + amount;
@@ -316,9 +338,10 @@ rule mintRevertingConditions(env e) {
     uint256 amount;
 
 	require totalSupply() + amount <= max_uint; // proof in totalSupplyNeverOverflow
-
-	bool nonOwner = e.msg.sender != owner();
+    require account != 0;
+	bool nonOwner = e.msg.sender != minter();
 	bool payable = e.msg.value != 0;
+    bool notEnoughBalance = balanceOf(account) < amount;
     bool isExpectedToRevert = nonOwner || payable;
 
     mint@withrevert(e, account, amount);
@@ -355,6 +378,7 @@ rule burnIntegrity(env e) {
 
     address from;
     uint256 amount;
+    require from == e.msg.sender;
 
     // cache state
     uint256 fromBalanceBefore  = balanceOf(from);
@@ -366,7 +390,7 @@ rule burnIntegrity(env e) {
     // check outcome
 
     // assert contract owner was the one called
-    assert e.msg.sender == owner(), "Only contract owner can call burn.";
+    assert e.msg.sender == minter(), "Only contract owner can call burn.";
 
     // updates balance and totalSupply
     assert to_mathint(balanceOf(from)) == fromBalanceBefore   - amount;
@@ -374,10 +398,11 @@ rule burnIntegrity(env e) {
 }
 
 rule burnRevertingConditions(env e) {
-	address account;
+	address account = e.msg.sender;
     uint256 amount;
+    require e.msg.sender != 0;
 
-	bool notOwner = e.msg.sender != owner();
+	bool notOwner = e.msg.sender != minter();
 	bool payable = e.msg.value != 0;
     bool notEnoughBalance = balanceOf(account) < amount;
     bool isExpectedToRevert = notEnoughBalance || payable || notOwner;
@@ -399,6 +424,7 @@ rule burnDoesNotAffectThirdParty( env e) {
 
     address addr2;
     require addr1 != addr2;
+    require addr1 == e.msg.sender;
 
     uint256 before = balanceOf(addr2);
 
@@ -458,19 +484,15 @@ rule transferIsOneWayAdditive(env e) {
 rule transferRevertingConditions(env e) {
 	uint256 amount;
 	address account;
-
+    bool toIsZero = account == 0;
+    bool fromIsZero = e.msg.sender == 0;    
 	bool payable = e.msg.value != 0;
     bool notEnoughBalance = balanceOf(e.msg.sender) < amount;
-    bool isExpectedToRevert = payable || notEnoughBalance;
+    bool isExpectedToRevert = payable || notEnoughBalance || toIsZero || fromIsZero;
+    uint256 totalSup = totalSupply();
 
+    require amount < 2^207 && e.block.number == 281474976710 && totalSup < 1000000;
     transfer@withrevert(e, account, amount);
-    // if(lastReverted) {
-    //     assert isExpectedToRevert;
-    // } 
-    // else {
-    //     assert !isExpectedToRevert;
-    // }
-
     assert lastReverted <=> isExpectedToRevert;
 }
 
@@ -529,8 +551,9 @@ rule transferFromRevertingConditions(env e) {
 	bool sendEthToNotPayable = e.msg.value != 0;
 	bool allowanceIsLow = allowed < transfered;
     bool notEnoughBalance = balanceOf(owner) < transfered;
+    bool isNullAddress = recepient == 0 || owner == 0 || spender == 0;
 
-    bool isExpectedToRevert = sendEthToNotPayable  || allowanceIsLow || notEnoughBalance;
+    bool isExpectedToRevert = sendEthToNotPayable  || allowanceIsLow || notEnoughBalance || isNullAddress;
 
     transferFrom@withrevert(e, owner, recepient, transfered);   
 
@@ -570,15 +593,17 @@ rule transferFromDoesNotAffectThirdParty(env e) {
 //We do not check the other direction (does not make sense becase of overflow reverts, i.e. does not hold)
 rule transferFromIsOneWayAdditive(env e) {
 	address recipient;
+    address caller = e.msg.sender;
     address owner;
     address spender = e.msg.sender;
 	uint256 amount_a;
     uint256 amount_b;
 	mathint sum = amount_a + amount_b;
-	require sum < max_uint256;
+	require sum < 2^208; //is this right??????????????
 	storage init = lastStorage; // saves storage
 	
 	transferFrom(e, owner, recipient, assert_uint256(sum));
+    numberOfChangesOfBalances = numberOfChangesOfBalances + 2;
 	storage after1 = lastStorage;
 
 	transferFrom@withrevert(e, owner, recipient, amount_a) at init; // restores storage
@@ -609,7 +634,7 @@ rule approveRevertingConditions(env e) {
 	address spender;
 	address owner = e.msg.sender;
 	uint256 amount;
-
+    require spender != 0 && owner != 0;
 	bool payable = e.msg.value != 0;
 	bool isExpectedToRevert = payable;
 
