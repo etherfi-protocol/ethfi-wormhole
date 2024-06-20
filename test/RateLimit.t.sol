@@ -29,6 +29,8 @@ contract TestRateLimit is Test, NttConstants, IRateLimiterEvents {
     IWormholeTransceiver public mainnetTransceiver;
     IWormholeTransceiver public arbTransceiver;
 
+    TrimmedAmount public maxWindowTrimmedAmount;
+
     function setUp() public {
         mainnetEthfi = ERC20Upgradeable(MAINNET_ETHFI);
         arbEthfi = ERC20Upgradeable(ARB_ETHFI);
@@ -39,33 +41,33 @@ contract TestRateLimit is Test, NttConstants, IRateLimiterEvents {
 
         mainnetTransceiver = IWormholeTransceiver(MAINNET_TRANSCEIVER);
         arbTransceiver = IWormholeTransceiver(ARB_TRANSCEIVER);
+
+        // solana only supports uint64 for token atms so all amts are stored as uint64s using `TrimmedAmount`
+        maxWindowTrimmedAmount = MAX_WINDOW.trim(18, 18);
     }
 
     function testRateLimitConfigs() public {
         vm.createSelectFork("https://eth-mainnet.public.blastapi.io");
-        checkRateLimitConfigs(mainnetEthfi, mainnetNttManager, ARB_WORMHOLE_ID);
+        checkRateLimitConfigs(mainnetNttManager, ARB_WORMHOLE_ID);
 
         vm.createSelectFork("https://arbitrum-one.public.blastapi.io");
-        checkRateLimitConfigs(arbEthfi, arbNttManager, MAINNET_WORMHOLE_ID);
+        checkRateLimitConfigs(arbNttManager, MAINNET_WORMHOLE_ID);
     }
 
-    function checkRateLimitConfigs(ERC20Upgradeable localEthfi, NttManager localNttManager, uint16 peerId) public {
+    function checkRateLimitConfigs(NttManager localNttManager, uint16 peerId) public {
         assertEq(localNttManager.rateLimitDuration(), RATE_LIMIT_DURATION);
-
-        // solana only supports uint64 for token atms so all amts are stored as uint64s using `TrimmedAmount`
-        TrimmedAmount windowTrimmedAmount = MAX_WINDOW.trim(localEthfi.decimals(), localEthfi.decimals());
         
-        eq(localNttManager.getOutboundLimitParams().limit, windowTrimmedAmount);
-        eq(localNttManager.getInboundLimitParams(peerId).limit, windowTrimmedAmount);
+        eq(localNttManager.getOutboundLimitParams().limit, maxWindowTrimmedAmount);
+        eq(localNttManager.getInboundLimitParams(peerId).limit, maxWindowTrimmedAmount);
     }
 
     function testOutboundRateLimit() public {
         vm.createSelectFork("https://eth-mainnet.public.blastapi.io");
-        // uint256 initialBlockTimestamp = vm.getBlockTimestamp();
-        outboundRateLimit(mainnetEthfi, mainnetNttManager, ARB_WORMHOLE_ID, 0);
+        uint256 initialBlockTimestamp = vm.getBlockTimestamp();
+        outboundRateLimit(mainnetEthfi, mainnetNttManager, ARB_WORMHOLE_ID, initialBlockTimestamp);
         vm.createSelectFork("https://arbitrum-one.public.blastapi.io");
-        // initialBlockTimestamp = vm.getBlockTimestamp();
-        outboundRateLimit(arbEthfi, arbNttManager, MAINNET_WORMHOLE_ID, 0);
+        initialBlockTimestamp = vm.getBlockTimestamp();
+        outboundRateLimit(arbEthfi, arbNttManager, MAINNET_WORMHOLE_ID, initialBlockTimestamp);
     }
 
     function outboundRateLimit(ERC20Upgradeable localEthfi, NttManager localNttManager, uint16 peerId, uint256 initialBlockTimestamp) public {
@@ -84,6 +86,7 @@ contract TestRateLimit is Test, NttConstants, IRateLimiterEvents {
 
         (,uint256 price) = localNttManager.quoteDeliveryPrice(peerId, new bytes(1));
 
+        // test a successful transfer within rate limit bounds
         uint256 transferAmountSmall = 1 ether;
         localEthfi.approve(address(localNttManager), transferAmountSmall);
         localNttManager.transfer{value: price}(
@@ -95,13 +98,16 @@ contract TestRateLimit is Test, NttConstants, IRateLimiterEvents {
             new bytes(1)
         );
 
-        uint256 transferTooLarge = MAX_WINDOW + 1 ether;
+        uint256 durationElapsedTime = initialBlockTimestamp + (localNttManager.rateLimitDuration());
+        vm.warp(durationElapsedTime);
 
+        uint256 transferTooLarge = MAX_WINDOW + 1 ether;
         localEthfi.approve(address(localNttManager), transferTooLarge);
+
+        // test revert on a transfer that is larger than max window size without enabling queueing
         vm.expectRevert(
             abi.encodeWithSelector(
-                // subtract 1 ether from the max window as as the limit was decreased by the last transfer
-                IRateLimiter.NotEnoughCapacity.selector, MAX_WINDOW - 1 ether, transferTooLarge
+                IRateLimiter.NotEnoughCapacity.selector, MAX_WINDOW, transferTooLarge
             )
         );
         localNttManager.transfer{value: price}(
@@ -113,10 +119,26 @@ contract TestRateLimit is Test, NttConstants, IRateLimiterEvents {
             new bytes(1)
         );
 
-        // elapse rate limit duration - 1
-        // uint256 durationElapsedTime = initialBlockTimestamp + localNttManager.rateLimitDuration();
-        // vm.warp(durationElapsedTime - 1);
+        vm.recordLogs();
+        // same transaciton is successful with queueing enabled
+        localNttManager.transfer{value: price}(
+            transferTooLarge,
+            peerId,
+            toWormholeFormat(user),
+            toWormholeFormat(user),
+            true, 
+            new bytes(1)
+        );
 
+        durationElapsedTime = initialBlockTimestamp + (durationElapsedTime);
+        vm.warp(durationElapsedTime);
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        uint64 transferId = abi.decode(entries[entries.length - 1].data, (uint64));
+        
+        uint64 seq = localNttManager.completeOutboundQueuedTransfer{value: price}(transferId);
+        assertEq(seq, transferId);
 
         vm.stopPrank();
     }
