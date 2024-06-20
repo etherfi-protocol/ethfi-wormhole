@@ -20,15 +20,14 @@ methods {
     function balanceOf(address) external returns (uint256) envfree;
     function allowance(address,address) external returns (uint256) envfree;
     function nonces(address) external returns (uint256) envfree;
-    function contractOwner() external returns (address) envfree;
-    function permit(address,address,uint256,uint256,uint8,bytes32,bytes32) external;
+    function owner() external returns (address) envfree;
     function approve(address,uint256) external returns bool;
     function transfer(address,uint256) external returns bool;
     function transferFrom(address,address,uint256) external returns bool;
 
     // exposed for FV
     function mint(address,uint256) external;
-    function burn(address,uint256) external;
+    function burn(uint256) external;
 }
 
 /*
@@ -39,13 +38,11 @@ methods {
 
 // functionality 
 definition canIncreaseAllowance(method f) returns bool = 
-	f.selector == sig:approve(address,uint256).selector ||
-	f.selector == sig:permit(address,address,uint256,uint256,uint8,bytes32,bytes32).selector;
+	f.selector == sig:approve(address,uint256).selector;
 
 definition canDecreaseAllowance(method f) returns bool = 
 	f.selector == sig:approve(address,uint256).selector || 
-	f.selector == sig:transferFrom(address,address,uint256).selector ||
-	f.selector == sig:permit(address,address,uint256,uint256,uint8,bytes32,bytes32).selector;
+	f.selector == sig:transferFrom(address,address,uint256).selector;
 
 definition canIncreaseBalance(method f) returns bool = 
 	f.selector == sig:mint(address,uint256).selector || 
@@ -53,7 +50,7 @@ definition canIncreaseBalance(method f) returns bool =
 	f.selector == sig:transferFrom(address,address,uint256).selector;
 
 definition canDecreaseBalance(method f) returns bool = 
-	f.selector == sig:burn(address,uint256).selector || 
+	f.selector == sig:burn(uint256).selector || 
 	f.selector == sig:transfer(address,uint256).selector ||
 	f.selector == sig:transferFrom(address,address,uint256).selector;
 
@@ -61,7 +58,7 @@ definition canIncreaseTotalSupply(method f) returns bool =
 	f.selector == sig:mint(address,uint256).selector;
 
 definition canDecreaseTotalSupply(method f) returns bool = 
-	f.selector == sig:burn(address,uint256).selector;
+	f.selector == sig:burn(uint256).selector;
 
 /*
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -104,11 +101,11 @@ invariant totalSupplyIsSumOfBalances()
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 */
 rule contractOwnerNeverChange(env e){
-    address owner = contractOwner();
+    address owner = owner();
     method f;
     calldataarg args;
     f(e, args);
-    assert owner == contractOwner();
+    assert owner == owner();
 }
 
 /*
@@ -194,8 +191,8 @@ rule onlyOwnerMintOrBurn(env e){
 
     f(e, args);
 
-    assert f.selector == sig:mint(address,uint256).selector => e.msg.sender == contractOwner();
-    assert f.selector == sig:burn(address,uint256).selector => e.msg.sender == contractOwner();
+    assert f.selector == sig:mint(uint256).selector => e.msg.sender == owner();
+    assert f.selector == sig:burn(uint256).selector => e.msg.sender == owner();
 }
 
 /*
@@ -250,7 +247,7 @@ rule onlyAuthorizedCanTransfer(env e, method f) filtered { f -> canDecreaseBalan
     assert (
         balanceAfter < balanceBefore
     ) => (
-        f.selector == sig:burn(address,uint256).selector ||
+        f.selector == sig:burn(uint256).selector ||
         e.msg.sender == account ||
         balanceBefore - balanceAfter <= to_mathint(allowanceBefore)
     );
@@ -274,16 +271,14 @@ rule onlyHolderOfSpenderCanChangeAllowance(env e) {
     assert (
         allowanceAfter > allowanceBefore
     ) => (
-        (f.selector == sig:approve(address,uint256).selector           && e.msg.sender == holder) ||
-        (f.selector == sig:permit(address,address,uint256,uint256,uint8,bytes32,bytes32).selector)
+        (f.selector == sig:approve(address,uint256).selector           && e.msg.sender == holder)
     );
 
     assert (
         allowanceAfter < allowanceBefore
     ) => (
         (f.selector == sig:transferFrom(address,address,uint256).selector && e.msg.sender == spender) ||
-        (f.selector == sig:approve(address,uint256).selector              && e.msg.sender == holder ) ||
-        (f.selector == sig:permit(address,address,uint256,uint256,uint8,bytes32,bytes32).selector)
+        (f.selector == sig:approve(address,uint256).selector              && e.msg.sender == holder ) 
     );
 }
 
@@ -309,7 +304,7 @@ rule mintIntegrity(env e) {
     // check outcome
 
     // assert contract owner was the one called
-    assert e.msg.sender == contractOwner(), "Only contract owner can call mint.";
+    assert e.msg.sender == owner(), "Only contract owner can call mint.";
 
     // updates balance and totalSupply
     assert to_mathint(balanceOf(to)) == toBalanceBefore   + amount;
@@ -322,7 +317,7 @@ rule mintRevertingConditions(env e) {
 
 	require totalSupply() + amount <= max_uint; // proof in totalSupplyNeverOverflow
 
-	bool nonOwner = e.msg.sender != contractOwner();
+	bool nonOwner = e.msg.sender != owner();
 	bool payable = e.msg.value != 0;
     bool isExpectedToRevert = nonOwner || payable;
 
@@ -366,12 +361,12 @@ rule burnIntegrity(env e) {
     uint256 totalSupplyBefore  = totalSupply();
 
     // run transaction
-    burn(e, from, amount);
+    burn(e, amount);
 
     // check outcome
 
     // assert contract owner was the one called
-    assert e.msg.sender == contractOwner(), "Only contract owner can call burn.";
+    assert e.msg.sender == owner(), "Only contract owner can call burn.";
 
     // updates balance and totalSupply
     assert to_mathint(balanceOf(from)) == fromBalanceBefore   - amount;
@@ -382,12 +377,12 @@ rule burnRevertingConditions(env e) {
 	address account;
     uint256 amount;
 
-	bool notOwner = e.msg.sender != contractOwner();
+	bool notOwner = e.msg.sender != owner();
 	bool payable = e.msg.value != 0;
     bool notEnoughBalance = balanceOf(account) < amount;
     bool isExpectedToRevert = notEnoughBalance || payable || notOwner;
 
-    burn@withrevert(e, account, amount);
+    burn@withrevert(e, amount);
     // if(lastReverted) {
     //     assert isExpectedToRevert;
     // } 
@@ -407,7 +402,7 @@ rule burnDoesNotAffectThirdParty( env e) {
 
     uint256 before = balanceOf(addr2);
 
-	burn(e, addr1, amount);
+	burn(e, amount);
     assert balanceOf(addr2) == before;
 }
 
@@ -645,141 +640,4 @@ rule approveDoesNotAffectThirdParty(env e) {
 	uint256 thirdPartyAllowanceAfter = allowance(thirdParty, everyUser);
 
     assert thirdPartyAllowanceBefore == thirdPartyAllowanceBefore;
-}
-
-/*
-┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ Rule: permit behavior and side effects                                                                              │
-└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-*/
-rule permitIntegrity(env e) {
-    address holder;
-    address spender;
-    uint256 amount;
-    uint256 deadline;
-    uint8 v;
-    bytes32 r;
-    bytes32 s;
-
-    // cache state
-    uint256 nonceBefore          = nonces(holder);
-    
-    // sanity: nonce overflow, which possible in theory, is assumed to be impossible in practice
-    require nonceBefore      < max_uint256;
-    
-    // run transaction
-    permit(e, holder, spender, amount, deadline, v, r, s);
-
-    // check outcome
-
-    // allowance and nonce are updated
-    assert allowance(holder, spender) == amount;
-    assert to_mathint(nonces(holder)) == nonceBefore + 1;
-
-    // deadline was respected
-    assert deadline >= e.block.timestamp;
-}
-
-rule permitRevertWhenDeadlineExpiers(env e){
-	address owner;
-	address spender;
-	uint256 value;
-	uint256 deadline;
-	uint8 v;
-	bytes32 r;
-	bytes32 s;
-
-	require deadline < e.block.timestamp;
-	permit@withrevert(e,owner,spender,value,deadline,v,r,s);
-	assert lastReverted;
-}
-
-rule permitDoesNotAffectThirdParty(env e) {
-    address holder;
-    address spender;
-    uint256 amount;
-    uint256 deadline;
-    uint8 v;
-    bytes32 r;
-    bytes32 s;
-
-    address thirdParty;
-    address everyUser;
-    
-    require thirdParty != holder && thirdParty != spender;
-
-	uint256 thirdPartyAllowanceBefore = allowance(thirdParty, everyUser);
-
-	approve(e, spender, amount);
-
-	uint256 thirdPartyAllowanceAfter = allowance(thirdParty, everyUser);
-
-    assert thirdPartyAllowanceBefore == thirdPartyAllowanceBefore;
-}
-
-rule permitDenialOfService(){
-    env e1;
-    env e2;
-
-    address clientHolder;
-    address clientSpender;
-    uint256 clientAmount;
-    uint256 clientDeadline;
-    uint8 clientV;
-    bytes32 clientR;
-    bytes32 clientS;
-
-    address attackerHolder;
-    address attackerSpender;
-    uint256 attackerAmount;
-    uint256 attackerDeadline;
-    uint8 attackerV;
-    bytes32 attackerR;
-    bytes32 attackerS;
-
-    require e1.msg.sender != e2.msg.sender;
-
-    storage init = lastStorage;
-
-    permit(e1, clientHolder, clientSpender, clientAmount, clientDeadline, clientV, clientR, clientS); // if pass not reverted
-    
-    permit(e2, attackerHolder, attackerSpender, attackerAmount, attackerDeadline, attackerV, attackerR, attackerS) at init; // attacker attack
-
-    permit(e1, clientHolder, clientSpender, clientAmount, clientDeadline, clientV, clientR, clientS);
-
-    satisfy true;
-}
-
-
-rule permitFrontRun(){
-    env e1;
-    env e2;
-
-    address clientHolder;
-    address clientSpender;
-    uint256 clientAmount;
-    uint256 clientDeadline;
-    uint8 clientV;
-    bytes32 clientR;
-    bytes32 clientS;
-
-    address attackerHolder;
-    address attackerSpender;
-    uint256 attackerAmount;
-    uint256 attackerDeadline;
-    uint8 attackerV;
-    bytes32 attackerR;
-    bytes32 attackerS;
-
-    require e1.msg.sender != e2.msg.sender;
-
-    storage init = lastStorage;
-
-    permit(e1, clientHolder, clientSpender, clientAmount, clientDeadline, clientV, clientR, clientS); // if pass not reverted
-    
-    permit(e2, attackerHolder, attackerSpender, attackerAmount, attackerDeadline, attackerV, attackerR, attackerS) at init; // attacker attack
-
-    permit@withrevert(e1, clientHolder, clientSpender, clientAmount, clientDeadline, clientV, clientR, clientS);
-
-    assert !lastReverted, "Cannot sign permit with same signature";
 }
