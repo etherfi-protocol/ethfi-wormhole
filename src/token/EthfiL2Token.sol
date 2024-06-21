@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache 2
 pragma solidity >=0.8.8 <0.9.0;
 
-import {OwnableUpgradeable} from
-    "openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import {Ownable2StepUpgradeable} from
+    "openzeppelin-contracts-upgradeable/contracts/access/Ownable2StepUpgradeable.sol";
 import {ERC20Upgradeable} from
     "openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20BurnableUpgradeable} from
@@ -21,7 +21,7 @@ contract EthfiL2Token is
     ERC20Upgradeable,
     ERC20BurnableUpgradeable,
     ERC20VotesUpgradeable,
-    OwnableUpgradeable
+    Ownable2StepUpgradeable
 {
     // =============== Storage ==============================================================
 
