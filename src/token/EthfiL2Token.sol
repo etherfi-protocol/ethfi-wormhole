@@ -23,6 +23,25 @@ contract EthfiL2Token is
     ERC20VotesUpgradeable,
     Ownable2StepUpgradeable
 {
+    /// @dev Increases the allowance granted to `_spender` by the caller.
+    function increaseAllowance(address _spender, uint256 _increaseAmount) external returns (bool) {
+        address owner = msg.sender;
+        uint256 currentAllowance = allowance(owner, _spender);
+        _approve(owner, _spender,currentAllowance + _increaseAmount);
+        return true;
+    }
+
+    /// @dev decreases the allowance granted to `_spender` by the caller.
+    function decreaseAllowance(address _spender, uint256 _decreaseAmount) external returns (bool) {
+        address owner = msg.sender;
+        uint256 currentAllowance = allowance(owner, _spender);
+        require(currentAllowance >= _decreaseAmount, "ERC20: decreased allowance below zero");
+        unchecked {
+            _approve(owner, _spender, currentAllowance - _decreaseAmount);
+        }
+        return true;
+    }
+
     // =============== Storage ==============================================================
 
     struct MinterStorage {
