@@ -5,8 +5,8 @@ pragma solidity >=0.8.8 <0.9.0;
 contract NttConstants {
 
     // chain agnostic constants
-    uint256 public constant MAX_WINDOW = 30000000000000000000000;
-    uint256 public constant RATE_LIMIT_DURATION = 3600;
+    uint256 public constant MAX_WINDOW = 150000000000000000000000;
+    uint256 public constant RATE_LIMIT_DURATION = 43200;
 
     // mainnet constants
     uint16 public constant MAINNET_WORMHOLE_ID = 2;

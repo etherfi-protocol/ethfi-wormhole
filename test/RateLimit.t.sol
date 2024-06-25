@@ -57,8 +57,8 @@ contract TestRateLimit is Test, NttConstants, IRateLimiterEvents {
     function checkRateLimitConfigs(NttManager localNttManager, uint16 peerId) public {
         assertEq(localNttManager.rateLimitDuration(), RATE_LIMIT_DURATION);
         
-        eq(localNttManager.getOutboundLimitParams().limit, maxWindowTrimmedAmount);
-        eq(localNttManager.getInboundLimitParams(peerId).limit, maxWindowTrimmedAmount);
+        assertTrue(eq(localNttManager.getOutboundLimitParams().limit, maxWindowTrimmedAmount));
+        assertTrue(eq(localNttManager.getInboundLimitParams(peerId).limit, maxWindowTrimmedAmount));
     }
 
     function testOutboundRateLimit() public {
