@@ -26,14 +26,14 @@ contract TransferCrossChain is Script, NttConstants {
     function _transferEthtoArb() internal {
         IERC20 ethfi = IERC20(MAINNET_ETHFI);
 
-        ethfi.approve(MAINNET_NTT_MANAGER, 1000000000000000000);
+        ethfi.approve(MAINNET_NTT_MANAGER, 0.5 ether);
 
         NttManager mainnetNttManager = NttManager(MAINNET_NTT_MANAGER);
        (,uint256 price) = mainnetNttManager.quoteDeliveryPrice(23, new bytes(1));
 
         price = price * 11 / 10;
         mainnetNttManager.transfer{value: price}(
-            1000000000000000000,
+            0.5 ether,
             23,
             0x000000000000000000000000C83bb94779c5577AF1D48dF8e2A113dFf0cB127c
         );
@@ -42,14 +42,14 @@ contract TransferCrossChain is Script, NttConstants {
     function _transferArbToEth() internal {
         IERC20 ethfi = IERC20(ARB_ETHFI);
 
-        ethfi.approve(ARB_NTT_MANAGER, 1000000000000000000);
+        ethfi.approve(ARB_NTT_MANAGER, 0.5 ether);
 
         NttManager arbNttManager = NttManager(ARB_NTT_MANAGER);
        (,uint256 price) = arbNttManager.quoteDeliveryPrice(2, new bytes(1));
 
         price = price * 11 / 10;
         arbNttManager.transfer{value: price}(
-            1000000000000000000,
+            0.5 ether,
             2,
             0x000000000000000000000000C83bb94779c5577AF1D48dF8e2A113dFf0cB127c
         );
