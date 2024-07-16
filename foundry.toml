@@ -11,6 +11,8 @@
   src = "src"
   via_ir = false
 
+  fs_permissions = [{ access = "read-write", path = "./"}]
+
 [profile.ci]
   fuzz = { runs = 256 }
   invariant = { runs = 1000 }
