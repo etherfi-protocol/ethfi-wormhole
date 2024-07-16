@@ -88,5 +88,4 @@ contract transferNTT is Test {
 
         return string(abi.encodePacked("0x", converted));
     }
-
 }
