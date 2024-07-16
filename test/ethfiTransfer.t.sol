@@ -13,7 +13,7 @@ contract transferNTT is Test {
     uint16 public RECIPIENT_CHAIN = 23;
 
     // Gnosis Safe addresses
-    address public SENDING_GNOSIS = 0x2382aAb6FDEDCc58bb07d692eda79bE96eb794bD;
+    address public SENDING_GNOSIS = 0x5f0E7A424d306e9E310be4f5Bb347216e473Ae55;
     address public RECEIVING_GNOSIS = 0xbe2cfe1a304B6497E6f64525D0017AbaB7a5E8Cb;
 
     // CONFIGURATION VARS
