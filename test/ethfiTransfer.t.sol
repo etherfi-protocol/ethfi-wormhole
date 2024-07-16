@@ -18,7 +18,7 @@ contract transferNTT is Test {
 
     // CONFIGURATION VARS
 
-    uint256 public transferAmount = 500000000000000000; // 1 ethfi
+    uint256 public transferAmount = 1000000000000000000000; // 1 ethfi
 
     function test_Transfer() public {
         vm.createSelectFork("https://mainnet.gateway.tenderly.co");
@@ -31,6 +31,8 @@ contract transferNTT is Test {
         bytes32 destinationBytes = toWormholeFormat(RECEIVING_GNOSIS);
 
         ( , uint256 fee) = nttManager.quoteDeliveryPrice(RECIPIENT_CHAIN, new bytes(1));
+
+        fee = fee * 2;
 
         // simulating the approve and transfer
         ethfi.approve(NTT_MANAGER, transferAmount);
@@ -54,7 +56,9 @@ contract transferNTT is Test {
         bytes memory transferData = abi.encodeWithSignature("transfer(uint256,uint16,bytes32,bytes32,bool,bytes)", transferAmount, RECIPIENT_CHAIN, destinationBytes, destinationBytes, false, new bytes(1));
         gnosisString = string.concat(gnosisString, _getGnosisTransaction(NTT_MANAGER, fee, transferData, true));
 
-        vm.writeJson(gnosisString, "./output/ethfiTransfer.json");
+        string memory transferAmountEth = vm.toString(transferAmount / 10**18);
+
+        vm.writeJson(gnosisString, string.concat("./output/ethfiTransfer_", transferAmountEth, ".json"));
 
     }
 
