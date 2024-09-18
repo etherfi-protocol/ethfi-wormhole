@@ -5,39 +5,49 @@ import "forge-std/Test.sol";
 
 import {NttManager, toWormholeFormat} from "@wormhole-foundation/native_token_transfer/NttManager/NttManager.sol";
 import {ERC20Upgradeable} from "openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol";
+import {NttConstants} from "../utils/constants.sol";
 
-contract transferNTT is Test {
-
-    address public NTT_MANAGER = 0x344169Cc4abE9459e77bD99D13AA8589b55b6174;
-    address public L1_ETHFI = 0xFe0c30065B384F05761f15d0CC899D4F9F9Cc0eB;
-    uint16 public RECIPIENT_CHAIN = 23;
+contract transferNTT is Test, NttConstants {
 
     // Gnosis Safe addresses
     address public SENDING_GNOSIS = 0x5f0E7A424d306e9E310be4f5Bb347216e473Ae55;
-    address public RECEIVING_GNOSIS = 0xbe2cfe1a304B6497E6f64525D0017AbaB7a5E8Cb;
+    address public ARB_RECEIVING_GNOSIS = 0xbe2cfe1a304B6497E6f64525D0017AbaB7a5E8Cb;
+    address public BASE_RECEIVING_GNOSIS = 0x6e08f190933b537070995c555693e12439DE8fB4;
 
-    // CONFIGURATION VARS
+    /////////////////////// CONFIGURATION VARS /////////////////////////
 
-    uint256 public transferAmount = 1000000000000000000000; // 1 ethfi
+    uint256 public TRANSFER_AMOUNT = 130000000000000000000000;
+    uint16 public RECIPIENT_CHAIN = BASE_WORMHOLE_ID;
+
+    /////////////////////// CONFIGURATION VARS /////////////////////////
 
     function test_Transfer() public {
         vm.createSelectFork("https://mainnet.gateway.tenderly.co");
 
         vm.startPrank(SENDING_GNOSIS);
 
-        NttManager nttManager = NttManager(NTT_MANAGER);
-        ERC20Upgradeable ethfi = ERC20Upgradeable(L1_ETHFI);
+        NttManager nttManager = NttManager(MAINNET_NTT_MANAGER);
+        ERC20Upgradeable ethfi = ERC20Upgradeable(MAINNET_ETHFI);
 
-        bytes32 destinationBytes = toWormholeFormat(RECEIVING_GNOSIS);
+        address receivingGnosis;
+        if (RECIPIENT_CHAIN == ARB_WORMHOLE_ID) {
+            receivingGnosis = ARB_RECEIVING_GNOSIS;
+        } else if (RECIPIENT_CHAIN == BASE_WORMHOLE_ID) {
+            receivingGnosis = BASE_RECEIVING_GNOSIS;
+        } else {
+            revert("Unsupported chain");
+        }
 
-        ( , uint256 fee) = nttManager.quoteDeliveryPrice(RECIPIENT_CHAIN, new bytes(1));
+        bytes32 destinationBytes = toWormholeFormat(receivingGnosis);
+
+        (, uint256 fee) = nttManager.quoteDeliveryPrice(RECIPIENT_CHAIN, new bytes(1));
 
         fee = fee * 2;
 
         // simulating the approve and transfer
-        ethfi.approve(NTT_MANAGER, transferAmount);
+        ethfi.approve(MAINNET_NTT_MANAGER, TRANSFER_AMOUNT);
         nttManager.transfer{value: fee}(
-            transferAmount,
+            TRANSFER_AMOUNT,
             RECIPIENT_CHAIN,
             destinationBytes,
             destinationBytes,
@@ -49,17 +59,22 @@ contract transferNTT is Test {
         string memory gnosisString = _getGnosisHeader("1");
 
         // building the approval transaction
-        bytes memory dataString = abi.encodeWithSignature("approve(address,uint256)", NTT_MANAGER, transferAmount);
-        gnosisString = string.concat(gnosisString, _getGnosisTransaction(L1_ETHFI, 0, dataString, false));
+        bytes memory dataString = abi.encodeWithSignature("approve(address,uint256)", MAINNET_NTT_MANAGER, TRANSFER_AMOUNT);
+        gnosisString = string.concat(gnosisString, _getGnosisTransaction(MAINNET_ETHFI, 0, dataString, false));
 
         // building the transfer transaction
-        bytes memory transferData = abi.encodeWithSignature("transfer(uint256,uint16,bytes32,bytes32,bool,bytes)", transferAmount, RECIPIENT_CHAIN, destinationBytes, destinationBytes, false, new bytes(1));
-        gnosisString = string.concat(gnosisString, _getGnosisTransaction(NTT_MANAGER, fee, transferData, true));
+        bytes memory transferData = abi.encodeWithSignature("transfer(uint256,uint16,bytes32,bytes32,bool,bytes)", TRANSFER_AMOUNT, RECIPIENT_CHAIN, destinationBytes, destinationBytes, false, new bytes(1));
+        gnosisString = string.concat(gnosisString, _getGnosisTransaction(MAINNET_NTT_MANAGER, fee, transferData, true));
 
-        string memory transferAmountEth = vm.toString(transferAmount / 10**18);
+        string memory transferAmountInETH = vm.toString(TRANSFER_AMOUNT / 10**18);
+        string memory destinationChain;
+        if (RECIPIENT_CHAIN == ARB_WORMHOLE_ID) {
+            destinationChain = "Arb";
+        } else if (RECIPIENT_CHAIN == BASE_WORMHOLE_ID) {
+            destinationChain = "Base";
+        }
 
-        vm.writeJson(gnosisString, string.concat("./output/ethfiTransfer_", transferAmountEth, ".json"));
-
+        vm.writeJson(gnosisString, string.concat("./output/ethfiTransfer_", transferAmountInETH,"_to", destinationChain, ".json"));
     }
 
     // Get the gnosis transaction header
