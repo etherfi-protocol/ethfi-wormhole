@@ -19,4 +19,10 @@ contract NttConstants {
     address public constant ARB_NTT_MANAGER = 0x90A82462258F79780498151EF6f663f1D4BE4E3b;
     address public constant ARB_TRANSCEIVER = 0x4386e36B96D437b0F1C04A35E572C10C6627d88a;
     address public constant ARB_ETHFI = 0x7189fb5B6504bbfF6a852B13B7B82a3c118fDc27;
+
+    // base constants
+    uint16 public constant BASE_WORMHOLE_ID = 30;
+    address public constant BASE_NTT_MANAGER = 0xE87797A1aFb329216811dfA22C87380128CA17d8;
+    address public constant BASE_TRANSCEIVER = 0x2153bEa70D96cd804aCbC89D82Ab36638fc1A5F4;
+    address public constant BASE_ETHFI = 0x6C240DDA6b5c336DF09A4D011139beAAa1eA2Aa2;
 }
