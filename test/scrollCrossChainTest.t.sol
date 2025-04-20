@@ -20,7 +20,7 @@ contract ScrollDeploysSimSends is Test, NttConstants, GnosisHelpers {
     ERC20Upgradeable public mainnetEthfi;
     ERC20Upgradeable public arbEthfi;
     ERC20Upgradeable public baseEthfi;
-    ERC20Upgradeable public scrollEthfi;
+    EthfiL2Token public scrollEthfi;
 
     NttManager public mainnetNttManager;
     NttManager public arbNttManager;
@@ -41,7 +41,7 @@ contract ScrollDeploysSimSends is Test, NttConstants, GnosisHelpers {
         mainnetEthfi = ERC20Upgradeable(MAINNET_ETHFI);
         arbEthfi = ERC20Upgradeable(ARB_ETHFI);
         baseEthfi = ERC20Upgradeable(BASE_ETHFI);
-        scrollEthfi = ERC20Upgradeable(SCROLL_ETHFI);
+        scrollEthfi = EthfiL2Token(SCROLL_ETHFI);
 
         mainnetNttManager = NttManager(MAINNET_NTT_MANAGER);
         arbNttManager = NttManager(ARB_NTT_MANAGER);
@@ -61,6 +61,14 @@ contract ScrollDeploysSimSends is Test, NttConstants, GnosisHelpers {
 
     function testCrossChainSend() public {
         vm.createSelectFork("https://scroll-mainnet.public.blastapi.io");
+        vm.prank(0xd8F3803d8412e61e04F53e1C9394e13eC8b32550);
+        scrollEthfi.transferOwnership(scrollContractController);
+
+        string memory scrollJson = _getGnosisHeader("534351");
+        scrollJson = string.concat(scrollJson, _getGnosisTransaction(address(scrollEthfi), abi.encodeWithSignature("acceptOwnership()", scrollContractController), true));
+
+        vm.writeFile("output/scroll-transfer-ownership.json", scrollJson);
+        executeGnosisTransactionBundle("output/scroll-transfer-ownership.json", scrollContractController);
 
         simulateSend(ARB_WORMHOLE_ID);
         simulateSend(MAINNET_WORMHOLE_ID);
