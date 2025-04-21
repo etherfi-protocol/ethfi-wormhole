@@ -14,7 +14,6 @@ import {EthfiL2Token} from "../src/token/EthfiL2Token.sol";
 import {NttConstants} from "../utils/constants.sol";
 import {GnosisHelpers} from "../utils/GnosisHelpers.sol";
 
-// testing sends from all peers after adding base as a peer
 contract ScrollDeploysSimSends is Test, NttConstants, GnosisHelpers {
 
     ERC20Upgradeable public mainnetEthfi;

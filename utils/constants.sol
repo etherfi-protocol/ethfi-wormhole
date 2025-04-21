@@ -30,8 +30,8 @@ contract NttConstants {
 
     // scroll constants 
     uint16 public constant SCROLL_WORMHOLE_ID = 34;
-    address public constant SCROLL_NTT_MANAGER = 0xEB1a3362aac9B3D96938BA03516F349D53829CF2;
-    address public constant SCROLL_TRANSCEIVER = 0x8bA09bD6Ed0d050F4969dE664F5c39a9ab85951B;
+    address public constant SCROLL_NTT_MANAGER = 0x552c09b224ec9146442767C0092C2928b61f62A1;
+    address public constant SCROLL_TRANSCEIVER = 0xdd5567a62600709282d5ad35381505230e149B1a;
     address public constant SCROLL_ETHFI = 0x056A5FA5da84ceb7f93d36e545C5905607D8bD81;
     address public constant SCROLL_CONTRACT_CONTROLLER = 0x3cD08f51D0EA86ac93368DE31822117cd70CECA3;
 }
