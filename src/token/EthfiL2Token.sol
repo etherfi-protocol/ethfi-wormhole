@@ -12,14 +12,11 @@ import {ERC20VotesUpgradeable} from
 import {UUPSUpgradeable} from
     "openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {INttToken} from "@wormhole-foundation/native_token_transfer/interfaces/INttToken.sol";
-import {IMintableBurnable} from "./interfaces/IMintableBurnable.sol";
 
 /// @title EthfiL2Token
 /// @notice A UUPS upgradeable token with access controlled minting and burning.
-/// @dev Implements INttToken (Wormhole NTT) and IMintableBurnable (OFT mint/burn) for cross-chain compatibility.
 contract EthfiL2Token is
     INttToken,
-    IMintableBurnable,
     UUPSUpgradeable,
     ERC20Upgradeable,
     ERC20BurnableUpgradeable,
@@ -127,22 +124,15 @@ contract EthfiL2Token is
         ERC20BurnableUpgradeable.burn(_value);
     }
 
-    /// @notice Burns tokens from `from`. When caller is the minter (e.g. OFT contract), burns without allowance (OFT-compliant).
-    ///         Otherwise uses ERC20 allowance (burnFrom(from, amount) by approve + burnFrom).
-    /// @param from Address to burn tokens from.
-    /// @param amount Amount to burn.
-    function burnFrom(address from, uint256 amount) public override(ERC20BurnableUpgradeable, IMintableBurnable) {
-        if (_msgSender() == minter()) {
-            _burn(from, amount);
-        } else {
-            super.burnFrom(from, amount);
-        }
+    /// @notice This method is not implemented and should not be called.
+    function burnFrom(address, uint256) public pure override {
+        revert UnimplementedMethod();
     }
 
     /// @notice A function that mints new tokens to a specific account.
     /// @param _account The address where new tokens will be minted.
     /// @param _amount The amount of new tokens that will be minted.
-    function mint(address _account, uint256 _amount) external override(INttToken, IMintableBurnable) onlyMinter {
+    function mint(address _account, uint256 _amount) external onlyMinter {
         _mint(_account, _amount);
     }
 
