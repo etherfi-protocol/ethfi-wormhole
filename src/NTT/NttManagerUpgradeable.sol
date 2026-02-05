@@ -25,12 +25,13 @@ contract NttManagerUpgradeable is NttManager {
     // =============== Constructor ==========================================================
 
     constructor(
-        address _token,
-        Mode _mode,
-        uint16 _chainId,
-        uint64 _rateLimitDuration,
-        bool _skipRateLimiting
-    ) NttManager(_token, _mode, _chainId, _rateLimitDuration, _skipRateLimiting) {}
+        address token,
+        Mode mode,
+        uint16 chainId,
+        uint64 rateLimitDuration,
+        bool skipRateLimiting
+    ) NttManager(token, mode, chainId, rateLimitDuration, skipRateLimiting) {}
+
 
     // =============== Storage Getters/Setters ==============================================
 
