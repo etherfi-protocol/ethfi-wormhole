@@ -150,8 +150,8 @@ contract EthfiL2Token is
     }
 
     /// @notice V2 initialization to add AccessControl and Pausable functionality for OFT migration
-    /// @param _admin The address that will be granted the DEFAULT_ADMIN_ROLE
     /// @dev Must be called via upgradeToAndCall during the upgrade to V2
+    /// @dev Grants DEFAULT_ADMIN_ROLE to the current owner
     function initializeV2() external reinitializer(2) {
         __AccessControlEnumerable_init();
         __Pausable_init();
@@ -176,7 +176,8 @@ contract EthfiL2Token is
     /// @notice A function that will burn tokens held by the `msg.sender`.
     /// @param _from The address from which the tokens will be burned.
     /// @param _amount The amount of tokens to be burned.
-    function burn(address _from, uint256 _amount) external onlyMinter returns (bool) {
+    /// @dev Can only be called when not paused
+    function burn(address _from, uint256 _amount) external onlyMinter whenNotPaused returns (bool) {
         _burn(_from, _amount);
         return true;
     }
@@ -189,7 +190,8 @@ contract EthfiL2Token is
     /// @notice A function that mints new tokens to a specific account.
     /// @param _to The address where new tokens will be minted.
     /// @param _amount The amount of new tokens that will be minted.
-    function mint(address _to, uint256 _amount) external onlyMinter returns (bool) {
+    /// @dev Can only be called when not paused
+    function mint(address _to, uint256 _amount) external onlyMinter whenNotPaused returns (bool) {
         _mint(_to, _amount);
         return true;
     }
