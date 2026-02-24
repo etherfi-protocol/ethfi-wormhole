@@ -14,7 +14,6 @@ import {NttConstants} from "../utils/constants.sol";
 contract VerifyOFTDeployments is ContractCodeChecker, Test, NttConstants {
     address constant LZ_ENDPOINT = 0x1a44076050125825900e736c501f859c50fE728c;
     address constant MAINNET_IMPL = 0xCc2b11A4Ff737F4A23f55d49eca7D9b03E502b9D;
-    address constant L2_TOKEN_IMPL = 0x5E5dB775D9D0049271E50a83E24663ac38F7ec34;
     address constant DEPLOYER = 0x5fd4b71C0e46FFb377EF6111459d0Fb1C968395e;
 
     function test_mainnet() public {

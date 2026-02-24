@@ -8,7 +8,6 @@ import {NttConstants} from "../utils/constants.sol";
 import {GnosisHelpers} from "./utils/GnosisHelpers.sol";
 
 contract SetMinterToOFT is Test, NttConstants, GnosisHelpers {
-    address constant L2_TOKEN_IMPL = 0x5E5dB775D9D0049271E50a83E24663ac38F7ec34;
 
     struct ChainConfig {
         string chainId;
