@@ -17,75 +17,43 @@ contract VerifyOFTDeployments is ContractCodeChecker, Test, NttConstants {
     address constant L2_TOKEN_IMPL = 0x5E5dB775D9D0049271E50a83E24663ac38F7ec34;
     address constant DEPLOYER = 0x5fd4b71C0e46FFb377EF6111459d0Fb1C968395e;
 
-    function test_mainnet_verifyOFTAdapterImplBytecode() public {
+    function test_mainnet() public {
         vm.createSelectFork("https://eth-mainnet.public.blastapi.io");
 
         address localImpl = address(new EtherfiOFTAdapterUpgradeable(MAINNET_ETHFI, LZ_ENDPOINT));
         console.log("Mainnet - verifying implementation at", MAINNET_IMPL);
         verifyContractByteCodeMatch(MAINNET_IMPL, localImpl);
-    }
 
-    function test_mainnet_verifyOFTProxyBytecode() public {
-        vm.createSelectFork("https://eth-mainnet.public.blastapi.io");
-
-        address localImpl = address(new EtherfiOFTAdapterUpgradeable(MAINNET_ETHFI, LZ_ENDPOINT));
         bytes memory initData = abi.encodeCall(EtherfiOFTAdapterUpgradeable.initialize, (DEPLOYER));
         address localProxy = address(new ERC1967Proxy(localImpl, initData));
-
         console.log("Mainnet - verifying proxy at", OFT);
         verifyContractByteCodeMatch(OFT, localProxy);
     }
 
-    function test_arbitrum_verifyMintBurnOFTBytecode() public {
+    function test_arbitrum() public {
         vm.createSelectFork("https://arb1.arbitrum.io/rpc");
-
-        address localDeploy = address(
-            new EtherfiMintBurnOFTAdapter(ARB_ETHFI, IMintableBurnable(ARB_ETHFI), LZ_ENDPOINT, DEPLOYER)
-        );
-        console.log("Arbitrum - verifying OFT at", OFT);
-        verifyContractByteCodeMatch(OFT, localDeploy);
+        _verifyL2("Arbitrum", ARB_ETHFI);
     }
 
-    function test_base_verifyMintBurnOFTBytecode() public {
+    function test_base() public {
         vm.createSelectFork("https://mainnet.base.org");
-
-        address localDeploy = address(
-            new EtherfiMintBurnOFTAdapter(BASE_ETHFI, IMintableBurnable(BASE_ETHFI), LZ_ENDPOINT, DEPLOYER)
-        );
-        console.log("Base - verifying OFT at", OFT);
-        verifyContractByteCodeMatch(OFT, localDeploy);
+        _verifyL2("Base", BASE_ETHFI);
     }
 
-    function test_scroll_verifyMintBurnOFTBytecode() public {
+    function test_scroll() public {
         vm.createSelectFork("https://rpc.scroll.io");
+        _verifyL2("Scroll", SCROLL_ETHFI);
+    }
 
-        address localDeploy = address(
-            new EtherfiMintBurnOFTAdapter(SCROLL_ETHFI, IMintableBurnable(SCROLL_ETHFI), LZ_ENDPOINT, DEPLOYER)
+    function _verifyL2(string memory chain, address token) internal {
+        address localOFT = address(
+            new EtherfiMintBurnOFTAdapter(token, IMintableBurnable(token), LZ_ENDPOINT, DEPLOYER)
         );
-        console.log("Scroll - verifying OFT at", OFT);
-        verifyContractByteCodeMatch(OFT, localDeploy);
-    }
+        console.log(string.concat(chain, " - verifying OFT at"), OFT);
+        verifyContractByteCodeMatch(OFT, localOFT);
 
-    // ========================= L2 Token Impl Verification ========================
-
-    function test_arbitrum_verifyL2TokenImplBytecode() public {
-        vm.createSelectFork("https://arb1.arbitrum.io/rpc");
-        _verifyL2TokenImpl("Arbitrum");
-    }
-
-    function test_base_verifyL2TokenImplBytecode() public {
-        vm.createSelectFork("https://mainnet.base.org");
-        _verifyL2TokenImpl("Base");
-    }
-
-    function test_scroll_verifyL2TokenImplBytecode() public {
-        vm.createSelectFork("https://rpc.scroll.io");
-        _verifyL2TokenImpl("Scroll");
-    }
-
-    function _verifyL2TokenImpl(string memory chain) internal {
-        address local = address(new EthfiL2Token());
+        address localTokenImpl = address(new EthfiL2Token());
         console.log(string.concat(chain, " - verifying L2 token impl at"), L2_TOKEN_IMPL);
-        verifyContractByteCodeMatch(L2_TOKEN_IMPL, local);
+        verifyContractByteCodeMatch(L2_TOKEN_IMPL, localTokenImpl);
     }
 }
