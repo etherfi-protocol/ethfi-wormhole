@@ -20,9 +20,9 @@ contract SetMinterToOFT is Test, NttConstants, GnosisHelpers {
 
     function run() public {
         ChainConfig[3] memory chains = [
-            ChainConfig("42161", "https://arbitrum-one.public.blastapi.io", ARB_CONTRACT_CONTROLLER, ARB_ETHFI, ARB_OFT, "arbitrum"),
-            ChainConfig("8453", "https://mainnet.base.org", BASE_CONTRACT_CONTROLLER, BASE_ETHFI, BASE_OFT, "base"),
-            ChainConfig("534352", "https://rpc.scroll.io", SCROLL_CONTRACT_CONTROLLER, SCROLL_ETHFI, SCROLL_OFT, "scroll")
+            ChainConfig("42161", "https://arbitrum-one.public.blastapi.io", ARB_CONTRACT_CONTROLLER, ARB_ETHFI, OFT, "arbitrum"),
+            ChainConfig("8453", "https://mainnet.base.org", BASE_CONTRACT_CONTROLLER, BASE_ETHFI, OFT, "base"),
+            ChainConfig("534352", "https://rpc.scroll.io", SCROLL_CONTRACT_CONTROLLER, SCROLL_ETHFI, OFT, "scroll")
         ];
 
         for (uint256 i = 0; i < chains.length; i++) {

@@ -15,7 +15,11 @@ contract UpgradeNttAndTransfer is Test, NttConstants, GnosisHelpers {
     uint256 constant MEDIUM_TRANSFER = 50_000 ether;
     uint256 constant LARGE_TRANSFER = 10_000_000 ether;
 
-    string constant OUTPUT_PATH = "./output/3_upgrade_ntt_transfer_OFT/upgradeNttAndTransfer_mainnet.json";
+    string constant OUTPUT_DIR = "./output/3_upgrade_ntt_transfer_OFT/";
+    string constant UPGRADE_PATH = "./output/3_upgrade_ntt_transfer_OFT/upgradeNtt_mainnet.json";
+    string constant TRANSFER_SMALL_PATH = "./output/3_upgrade_ntt_transfer_OFT/transfer_small_mainnet.json";
+    string constant TRANSFER_MEDIUM_PATH = "./output/3_upgrade_ntt_transfer_OFT/transfer_medium_mainnet.json";
+    string constant TRANSFER_LARGE_PATH = "./output/3_upgrade_ntt_transfer_OFT/transfer_large_mainnet.json";
 
     function run() public {
         vm.createSelectFork("https://eth-mainnet.public.blastapi.io");
@@ -28,65 +32,68 @@ contract UpgradeNttAndTransfer is Test, NttConstants, GnosisHelpers {
             false
         );
 
-        _generateJson(address(newImpl));
+        _generateUpgradeJson(address(newImpl));
+        _generateTransferJsons();
         _testOnFork();
     }
 
-    function _generateJson(address newImpl) internal {
+    function _generateUpgradeJson(address newImpl) internal {
         string memory nttManagerHex = addressToHex(MAINNET_NTT_MANAGER);
-        string memory transactions = _getGnosisHeader("1", addressToHex(MAINNET_CONTRACT_CONTROLLER));
+        string memory header = _getGnosisHeader("1", addressToHex(MAINNET_CONTRACT_CONTROLLER));
 
         bytes memory upgradeData = abi.encodeWithSignature("upgrade(address)", newImpl);
-        transactions = string.concat(
-            transactions,
-            _getGnosisTransaction(nttManagerHex, iToHex(upgradeData), "0", false)
+        bytes memory setAdapterData = abi.encodeWithSignature("setOftAdapter(address)", OFT);
+
+        string memory bundle = string.concat(
+            header,
+            _getGnosisTransaction(nttManagerHex, iToHex(upgradeData), "0", false),
+            _getGnosisTransaction(nttManagerHex, iToHex(setAdapterData), "0", true)
         );
 
-        bytes memory setAdapterData = abi.encodeWithSignature("setOftAdapter(address)", MAINNET_OFT);
-        transactions = string.concat(
-            transactions,
-            _getGnosisTransaction(nttManagerHex, iToHex(setAdapterData), "0", false)
-        );
+        vm.writeFile(UPGRADE_PATH, bundle);
+        console.log("Upgrade bundle written to", UPGRADE_PATH);
+    }
 
-        bytes memory smallTransferData = abi.encodeWithSignature("transferToOftAdapter(uint256)", SMALL_TRANSFER);
-        transactions = string.concat(
-            transactions,
-            _getGnosisTransaction(nttManagerHex, iToHex(smallTransferData), "0", false)
-        );
+    function _generateTransferJsons() internal {
+        string memory nttManagerHex = addressToHex(MAINNET_NTT_MANAGER);
+        string memory header = _getGnosisHeader("1", addressToHex(MAINNET_CONTRACT_CONTROLLER));
 
-        bytes memory mediumTransferData = abi.encodeWithSignature("transferToOftAdapter(uint256)", MEDIUM_TRANSFER);
-        transactions = string.concat(
-            transactions,
-            _getGnosisTransaction(nttManagerHex, iToHex(mediumTransferData), "0", false)
-        );
+        _writeTransferJson(header, nttManagerHex, SMALL_TRANSFER, TRANSFER_SMALL_PATH);
+        _writeTransferJson(header, nttManagerHex, MEDIUM_TRANSFER, TRANSFER_MEDIUM_PATH);
+        _writeTransferJson(header, nttManagerHex, LARGE_TRANSFER, TRANSFER_LARGE_PATH);
+    }
 
-        bytes memory largeTransferData = abi.encodeWithSignature("transferToOftAdapter(uint256)", LARGE_TRANSFER);
-        transactions = string.concat(
-            transactions,
-            _getGnosisTransaction(nttManagerHex, iToHex(largeTransferData), "0", true)
+    function _writeTransferJson(string memory header, string memory nttManagerHex, uint256 amount, string memory path) internal {
+        bytes memory data = abi.encodeWithSignature("transferToOftAdapter(uint256)", amount);
+        string memory tx = string.concat(
+            header,
+            _getGnosisTransaction(nttManagerHex, iToHex(data), "0", true)
         );
-
-        vm.writeFile(OUTPUT_PATH, transactions);
-        console.log("Upgrade + transfer transactions written to", OUTPUT_PATH);
+        vm.writeFile(path, tx);
+        console.log("Transfer transaction written to", path);
     }
 
     function _testOnFork() internal {
         IERC20 ethfi = IERC20(MAINNET_ETHFI);
 
         uint256 managerBalanceBefore = ethfi.balanceOf(MAINNET_NTT_MANAGER);
-        uint256 oftBalanceBefore = ethfi.balanceOf(MAINNET_OFT);
+        uint256 oftBalanceBefore = ethfi.balanceOf(OFT);
         uint256 totalTransfer = SMALL_TRANSFER + MEDIUM_TRANSFER + LARGE_TRANSFER;
 
         console.log("NTT Manager ETHFI balance before:", managerBalanceBefore);
         require(managerBalanceBefore >= totalTransfer, "NTT Manager has insufficient ETHFI balance");
 
-        executeGnosisTransactionBundle(OUTPUT_PATH);
+        executeGnosisTransactionBundle(UPGRADE_PATH);
 
         NttManagerUpgradeable upgraded = NttManagerUpgradeable(MAINNET_NTT_MANAGER);
-        require(upgraded.getOftAdapter() == MAINNET_OFT, "OFT adapter not set correctly");
+        require(upgraded.getOftAdapter() == OFT, "OFT adapter not set correctly");
+
+        executeGnosisTransactionBundle(TRANSFER_SMALL_PATH);
+        executeGnosisTransactionBundle(TRANSFER_MEDIUM_PATH);
+        executeGnosisTransactionBundle(TRANSFER_LARGE_PATH);
 
         uint256 managerBalanceAfter = ethfi.balanceOf(MAINNET_NTT_MANAGER);
-        uint256 oftBalanceAfter = ethfi.balanceOf(MAINNET_OFT);
+        uint256 oftBalanceAfter = ethfi.balanceOf(OFT);
 
         require(
             managerBalanceAfter == managerBalanceBefore - totalTransfer,

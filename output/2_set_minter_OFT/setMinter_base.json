@@ -1,1 +1,14 @@
-{"chainId":"8453","safeAddress":"0x7a00657a45420044bc526b90ad667affaee0a868","meta": { "txBuilderVersion": "1.16.5" }, "transactions": [{"to":"0x6c240dda6b5c336df09a4d011139beaaa1ea2aa2","value":"0","data":"0xfca3b5aa0000000000000000000000000000000000000000000000000000000000111111"}]}
+{
+    "chainId": "8453",
+    "safeAddress": "0x7a00657a45420044bc526b90ad667affaee0a868",
+    "meta": {
+        "txBuilderVersion": "1.16.5"
+    },
+    "transactions": [
+        {
+            "to": "0x6c240dda6b5c336df09a4d011139beaaa1ea2aa2",
+            "value": "0",
+            "data": "0xfca3b5aa000000000000000000000000e0080d2f853ecddbd81a643dc10da075df26fd3f"
+        }
+    ]
+}
