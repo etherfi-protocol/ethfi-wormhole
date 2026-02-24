@@ -73,49 +73,49 @@ contract DeployOFT is Script, NttConstants {
         chains[0] = ChainConfig({
             chainId: 1,
             eid: 30101,
-            confirmations: 15,
+            confirmations: 20,
             token: MAINNET_ETHFI,
             controller: MAINNET_CONTRACT_CONTROLLER,
             endpoint: 0x1a44076050125825900e736c501f859c50fE728c,
             sendLib: 0xbB2Ea70C9E858123480642Cf96acbcCE1372dCe1,
             receiveLib: 0xc02Ab410f0734EFa3F14628780e6e695156024C2,
             dvn1: 0x589dEDbD617e0CBcB916A9223F4d1300c294236b, // LZ Labs
-            dvn2: 0xF4064220871e3B94Ca6aB3b0CEE8e29178bF47dE  // Nethermind
+            dvn2: 0xa59ba433ac34d2927232918ef5b2eaafcf130ba5  // Nethermind
         });
         chains[1] = ChainConfig({
             chainId: 42161,
             eid: 30110,
-            confirmations: 1,
+            confirmations: 20,
             token: ARB_ETHFI,
             controller: ARB_CONTRACT_CONTROLLER,
             endpoint: 0x1a44076050125825900e736c501f859c50fE728c,
             sendLib: 0x975bcD720be66659e3EB3C0e4F1866a3020E493A,
             receiveLib: 0x7B9E184e07a6EE1aC23eAe0fe8D6Be2f663f05e6,
-            dvn1: 0x14E570a1684c7ca883b35e1B25D2F7CEc98a16cd, // Nethermind
-            dvn2: 0x2f55C492897526677C5B68fb199ea31E2c126416  // LZ Labs
+            dvn1: 0x2f55C492897526677C5B68fb199ea31E2c126416, // LZ Labs
+            dvn2: 0xa7b5189bca84cd304d8553977c7c614329750d99  // Nethermind
         });
         chains[2] = ChainConfig({
             chainId: 8453,
             eid: 30184,
-            confirmations: 1,
+            confirmations: 20,
             token: BASE_ETHFI,
             controller: BASE_CONTRACT_CONTROLLER,
             endpoint: 0x1a44076050125825900e736c501f859c50fE728c,
             sendLib: 0xB5320B0B3a13cC860893E2Bd79FCd7e13484Dda2,
             receiveLib: 0xc70AB6f32772f59fBfc23889Caf4Ba3376C84bAf,
-            dvn1: 0xB1473AC9f58FB27597a21710da9D1071841E8163, // LZ Labs
-            dvn2: 0xcd37CA043f8479064e10635020c65FfC005d36f6  // Nethermind
+            dvn1: 0x9e059a54699a285714207b43b055483e78faac25, // LZ Labs
+            dvn2: 0xcd37ca043f8479064e10635020c65ffc005d36f6  // Nethermind
         });
         chains[3] = ChainConfig({
             chainId: 534352,
             eid: 30214,
-            confirmations: 1,
+            confirmations: 20,
             token: SCROLL_ETHFI,
             controller: SCROLL_CONTRACT_CONTROLLER,
             endpoint: 0x1a44076050125825900e736c501f859c50fE728c,
             sendLib: 0x9BbEb2B2184B9313Cf5ed4a4DDFEa2ef62a2a03B,
             receiveLib: 0x8363302080e711E0CAb978C081b9e69308d49808,
-            dvn1: 0xb212750bC22D26499DAbF3ffe2Ba1931dC3Af3e1, // Nethermind
+            dvn1: 0x446755349101cb20c582c224462c3912d3584dce, // Nethermind
             dvn2: 0xbe0d08a85EeBFCC6eDA0A843521f7CBB1180D2e2  // LZ Labs
         });
     }
