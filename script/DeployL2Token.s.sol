@@ -7,7 +7,7 @@ import {ICreateX} from "./utils/ICreateX.sol";
 
 contract DeployL2Token is Script {
     ICreateX internal constant CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
-    bytes32 internal constant DEPLOY_SALT = keccak256("etherfi-l2-token-v2");
+    bytes32 internal constant DEPLOY_SALT = keccak256("ethfi-l2-token-v2");
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");

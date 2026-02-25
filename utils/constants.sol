@@ -8,7 +8,7 @@ contract NttConstants {
     uint256 public constant MAX_WINDOW = 150000000000000000000000;
     uint256 public constant RATE_LIMIT_DURATION = 43200;
     address public constant OFT = 0xe0080d2F853ecDdbd81A643dC10DA075Df26fD3f;
-    address public constant L2_TOKEN_IMPL = 0x5E5dB775D9D0049271E50a83E24663ac38F7ec34;
+    address public constant L2_TOKEN_IMPL = 0xCF5d8bC4aC508A26b038d91E8CAcA318A177b6c1;
 
     // mainnet constants
     uint16 public constant MAINNET_WORMHOLE_ID = 2;
