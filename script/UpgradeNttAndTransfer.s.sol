@@ -4,6 +4,7 @@ pragma solidity >=0.8.8 <0.9.0;
 import {Test, console} from "forge-std/Test.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {IManagerBase} from "@wormhole-foundation/native_token_transfer/interfaces/IManagerBase.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {NttManagerUpgradeable} from "../src/NTT/NttManagerUpgradeable.sol";
 
 import {NttConstants} from "../utils/constants.sol";
@@ -39,15 +40,20 @@ contract UpgradeNttAndTransfer is Test, NttConstants, GnosisHelpers {
 
     function _generateUpgradeJson(address newImpl) internal {
         string memory nttManagerHex = addressToHex(MAINNET_NTT_MANAGER);
+        string memory oftHex = addressToHex(OFT);
         string memory header = _getGnosisHeader("1", addressToHex(MAINNET_CONTRACT_CONTROLLER));
 
         bytes memory upgradeData = abi.encodeWithSignature("upgrade(address)", newImpl);
         bytes memory setAdapterData = abi.encodeWithSignature("setOftAdapter(address)", OFT);
+        bytes memory grantPauserData = abi.encodeWithSignature("grantRole(bytes32,address)", keccak256("PAUSER_ROLE"), PAUSER);
+        bytes memory grantUnpauserData = abi.encodeWithSignature("grantRole(bytes32,address)", keccak256("UNPAUSER_ROLE"), MAINNET_CONTRACT_CONTROLLER);
 
         string memory bundle = string.concat(
             header,
             _getGnosisTransaction(nttManagerHex, iToHex(upgradeData), "0", false),
-            _getGnosisTransaction(nttManagerHex, iToHex(setAdapterData), "0", true)
+            _getGnosisTransaction(nttManagerHex, iToHex(setAdapterData), "0", false),
+            _getGnosisTransaction(oftHex, iToHex(grantPauserData), "0", false),
+            _getGnosisTransaction(oftHex, iToHex(grantUnpauserData), "0", true)
         );
 
         vm.writeFile(UPGRADE_PATH, bundle);
@@ -87,6 +93,10 @@ contract UpgradeNttAndTransfer is Test, NttConstants, GnosisHelpers {
 
         NttManagerUpgradeable upgraded = NttManagerUpgradeable(MAINNET_NTT_MANAGER);
         require(upgraded.getOftAdapter() == OFT, "OFT adapter not set correctly");
+
+        IAccessControl oftAcl = IAccessControl(OFT);
+        require(oftAcl.hasRole(keccak256("PAUSER_ROLE"), PAUSER), "OFT pauser role not granted");
+        require(oftAcl.hasRole(keccak256("UNPAUSER_ROLE"), MAINNET_CONTRACT_CONTROLLER), "OFT unpauser role not granted");
 
         executeGnosisTransactionBundle(TRANSFER_SMALL_PATH);
         executeGnosisTransactionBundle(TRANSFER_MEDIUM_PATH);

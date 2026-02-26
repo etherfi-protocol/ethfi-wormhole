@@ -47,7 +47,21 @@ contract SetMinterToOFT is Test, NttConstants, GnosisHelpers {
         bytes memory setMinterData = abi.encodeWithSignature("setMinter(address)", chain.oft);
         transactions = string.concat(
             transactions,
-            _getGnosisTransaction(addressToHex(chain.token), iToHex(setMinterData), "0", true)
+            _getGnosisTransaction(addressToHex(chain.token), iToHex(setMinterData), "0", false)
+        );
+
+        // 3. grantRole PAUSER_ROLE
+        bytes memory grantPauserData = abi.encodeWithSignature("grantRole(bytes32,address)", keccak256("PAUSER_ROLE"), PAUSER);
+        transactions = string.concat(
+            transactions,
+            _getGnosisTransaction(addressToHex(chain.token), iToHex(grantPauserData), "0", false)
+        );
+
+        // 4. grantRole UNPAUSER_ROLE to controller
+        bytes memory grantUnpauserData = abi.encodeWithSignature("grantRole(bytes32,address)", keccak256("UNPAUSER_ROLE"), chain.controller);
+        transactions = string.concat(
+            transactions,
+            _getGnosisTransaction(addressToHex(chain.token), iToHex(grantUnpauserData), "0", true)
         );
 
         vm.writeFile(path, transactions);
@@ -66,6 +80,8 @@ contract SetMinterToOFT is Test, NttConstants, GnosisHelpers {
         require(token.minter() == chain.oft, string.concat(chain.name, " minter not set to OFT"));
         require(!token.paused(), string.concat(chain.name, " token should not be paused"));
         require(token.hasRole(token.DEFAULT_ADMIN_ROLE(), chain.controller), string.concat(chain.name, " controller missing admin role"));
-        console.log(string.concat(chain.name, " upgrade + setMinter verified successfully"));
+        require(token.hasRole(keccak256("PAUSER_ROLE"), PAUSER), string.concat(chain.name, " pauser role not granted"));
+        require(token.hasRole(keccak256("UNPAUSER_ROLE"), chain.controller), string.concat(chain.name, " unpauser role not granted"));
+        console.log(string.concat(chain.name, " upgrade + setMinter + roles verified successfully"));
     }
 }
