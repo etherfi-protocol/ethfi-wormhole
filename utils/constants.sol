@@ -14,6 +14,7 @@ contract NttConstants {
     // mainnet constants
     uint16 public constant MAINNET_WORMHOLE_ID = 2;
     address public constant MAINNET_NTT_MANAGER = 0x344169Cc4abE9459e77bD99D13AA8589b55b6174;
+    address public constant MAINNET_NTT_MANAGER_IMPL = 0x2fa3D2E79807E8826B8608414D6f4a2a65a3AF2e;
     address public constant MAINNET_TRANSCEIVER = 0x3bf4AebcaD920447c5fdD6529239Ab3922ce2186;
     address public constant MAINNET_ETHFI = 0xFe0c30065B384F05761f15d0CC899D4F9F9Cc0eB;
     address public constant MAINNET_CONTRACT_CONTROLLER = 0x2aCA71020De61bb532008049e1Bd41E451aE8AdC;

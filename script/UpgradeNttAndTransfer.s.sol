@@ -3,7 +3,6 @@ pragma solidity >=0.8.8 <0.9.0;
 
 import {Test, console} from "forge-std/Test.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {IManagerBase} from "@wormhole-foundation/native_token_transfer/interfaces/IManagerBase.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {NttManagerUpgradeable} from "../src/NTT/NttManagerUpgradeable.sol";
 
@@ -25,15 +24,7 @@ contract UpgradeNttAndTransfer is Test, NttConstants, GnosisHelpers {
     function run() public {
         vm.createSelectFork("https://eth-mainnet.public.blastapi.io");
 
-        NttManagerUpgradeable newImpl = new NttManagerUpgradeable(
-            MAINNET_ETHFI,
-            IManagerBase.Mode.LOCKING,
-            MAINNET_WORMHOLE_ID,
-            uint64(RATE_LIMIT_DURATION),
-            false
-        );
-
-        _generateUpgradeJson(address(newImpl));
+        _generateUpgradeJson(MAINNET_NTT_MANAGER_IMPL);
         _generateTransferJsons();
         _testOnFork();
     }
