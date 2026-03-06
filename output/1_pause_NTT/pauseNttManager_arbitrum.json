@@ -1,0 +1,14 @@
+{
+    "chainId": "42161",
+    "safeAddress": "0x0c6ca434756eedf928a55ebeaf0019364b279732",
+    "meta": {
+        "txBuilderVersion": "1.16.5"
+    },
+    "transactions": [
+        {
+            "to": "0x90a82462258f79780498151ef6f663f1d4be4e3b",
+            "value": "0",
+            "data": "0x8456cb59"
+        }
+    ]
+}
