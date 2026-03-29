@@ -3,6 +3,8 @@ pragma solidity >=0.8.8 <0.9.0;
 
 import {Ownable2StepUpgradeable} from
     "openzeppelin-contracts-upgradeable/contracts/access/Ownable2StepUpgradeable.sol";
+import {AccessControlEnumerableUpgradeable} from
+    "openzeppelin-contracts-upgradeable/contracts/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import {ERC20Upgradeable} from
     "openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol";
 import {ERC20BurnableUpgradeable} from
@@ -11,18 +13,47 @@ import {ERC20VotesUpgradeable} from
     "openzeppelin-contracts-upgradeable/contracts/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import {UUPSUpgradeable} from
     "openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
-import {INttToken} from "@wormhole-foundation/native_token_transfer/interfaces/INttToken.sol";
+import {PausableUpgradeable} from
+    "openzeppelin-contracts-upgradeable/contracts/utils/PausableUpgradeable.sol";
+import {IMintableBurnable} from "@layerzerolabs/oft-evm/contracts/interfaces/IMintableBurnable.sol";
 
 /// @title EthfiL2Token
 /// @notice A UUPS upgradeable token with access controlled minting and burning.
+/// @dev Implements IMintableBurnable for LayerZero OFT cross-chain compatibility.
 contract EthfiL2Token is
-    INttToken,
+    IMintableBurnable,
     UUPSUpgradeable,
     ERC20Upgradeable,
     ERC20BurnableUpgradeable,
     ERC20VotesUpgradeable,
-    Ownable2StepUpgradeable
+    Ownable2StepUpgradeable,
+    AccessControlEnumerableUpgradeable,
+    PausableUpgradeable
 {
+    // =============== Constants ==============================================================
+
+    /// @notice Role identifier for accounts that can pause the token
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+
+    /// @notice Role identifier for accounts that can unpause the token
+    bytes32 public constant UNPAUSER_ROLE = keccak256("UNPAUSER_ROLE");
+
+    // =============== Errors & Events ========================================================
+
+    /// @notice Error when the caller is not the minter.
+    /// @param caller The caller of the function.
+    error CallerNotMinter(address caller);
+
+    /// @notice Error when the minter is the zero address.
+    error InvalidMinterZeroAddress();
+
+    /// @notice The minter has been changed.
+    /// @param previousMinter The previous minter address.
+    /// @param newMinter The new minter address.
+    event NewMinter(address previousMinter, address newMinter);
+
+    // =============== Public Functions =======================================================
+
     /// @dev Increases the allowance granted to `_spender` by the caller.
     function increaseAllowance(address _spender, uint256 _increaseAmount) external returns (bool) {
         address owner = msg.sender;
@@ -118,10 +149,37 @@ contract EthfiL2Token is
         // __UUPSUpgradeable_init();
     }
 
+    /// @notice V2 initialization to add AccessControl and Pausable functionality for OFT migration
+    /// @dev Must be called via upgradeToAndCall during the upgrade to V2
+    /// @dev Grants DEFAULT_ADMIN_ROLE to the current owner
+    function initializeV2() external reinitializer(2) {
+        __AccessControlEnumerable_init();
+        __Pausable_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, owner());
+    }
+
+    // =============== Pause Functions ========================================================
+
+    /// @notice Pauses the token, preventing transfers
+    /// @dev Can only be called by accounts with the PAUSER_ROLE
+    function pause() external onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    /// @notice Unpauses the token, allowing transfers
+    /// @dev Can only be called by accounts with the UNPAUSER_ROLE
+    function unpause() external onlyRole(UNPAUSER_ROLE) {
+        _unpause();
+    }
+
     /// @notice A function that will burn tokens held by the `msg.sender`.
-    /// @param _value The amount of tokens to be burned.
-    function burn(uint256 _value) public override(INttToken, ERC20BurnableUpgradeable) onlyMinter {
-        ERC20BurnableUpgradeable.burn(_value);
+    /// @param _from The address from which the tokens will be burned.
+    /// @param _amount The amount of tokens to be burned.
+    /// @dev Can only be called when not paused
+    function burn(address _from, uint256 _amount) external onlyMinter whenNotPaused returns (bool) {
+        _burn(_from, _amount);
+        return true;
     }
 
     /// @notice This method is not implemented and should not be called.
@@ -130,10 +188,12 @@ contract EthfiL2Token is
     }
 
     /// @notice A function that mints new tokens to a specific account.
-    /// @param _account The address where new tokens will be minted.
+    /// @param _to The address where new tokens will be minted.
     /// @param _amount The amount of new tokens that will be minted.
-    function mint(address _account, uint256 _amount) external onlyMinter {
-        _mint(_account, _amount);
+    /// @dev Can only be called when not paused
+    function mint(address _to, uint256 _amount) external onlyMinter whenNotPaused returns (bool) {
+        _mint(_to, _amount);
+        return true;
     }
 
     function _authorizeUpgrade(address /* newImplementation */ ) internal view override onlyOwner {}
