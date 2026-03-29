@@ -1,2 +1,9 @@
 @wormhole-foundation/native_token_transfer=lib/example-native-token-transfers/evm/src
 @openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/
+lz-address-book/=lib/lz-address-book/src/
+@layerzerolabs/lz-evm-protocol-v2/=lib/lz-address-book/lib/LayerZero-v2/packages/layerzero-v2/evm/protocol/
+@layerzerolabs/lz-evm-messagelib-v2/=lib/lz-address-book/lib/LayerZero-v2/packages/layerzero-v2/evm/messagelib/
+@layerzerolabs/oft-evm/=lib/lz-address-book/lib/devtools/packages/oft-evm/
+@layerzerolabs/oapp-evm/=lib/lz-address-book/lib/devtools/packages/oapp-evm/
+@layerzerolabs/oft-evm-upgradeable/=lib/lz-address-book/lib/devtools/packages/oft-evm-upgradeable/
+@layerzerolabs/oapp-evm-upgradeable/=lib/lz-address-book/lib/devtools/packages/oapp-evm-upgradeable/
