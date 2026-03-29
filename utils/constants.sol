@@ -35,4 +35,7 @@ contract NttConstants {
     address public constant SCROLL_TRANSCEIVER = 0xdd5567a62600709282d5ad35381505230e149B1a;
     address public constant SCROLL_ETHFI = 0x056A5FA5da84ceb7f93d36e545C5905607D8bD81;
     address public constant SCROLL_CONTRACT_CONTROLLER = 0x3cD08f51D0EA86ac93368DE31822117cd70CECA3;
+
+    // optimism constants
+    address public constant OP_CONTRACT_CONTROLLER = 0x764682c769CcB119349d92f1B63ee1c03d6AECFf;
 }
