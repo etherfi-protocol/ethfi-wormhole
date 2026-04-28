@@ -8,7 +8,19 @@ import "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/IMessageLibManage
 
 import {GnosisHelpers} from "./utils/GnosisHelpers.sol";
 
-/// @notice Gnosis Safe batches for ETHFI OFT (CREATE3 mesh): pin LZ send/receive libraries + 4-DVN ULN (45 confirmations).
+interface ILzEndpointReader {
+    function getSendLibrary(address oapp, uint32 eid) external view returns (address);
+    function isDefaultSendLibrary(address oapp, uint32 eid) external view returns (bool);
+    function getReceiveLibrary(address oapp, uint32 eid) external view returns (address lib, bool isDefault);
+}
+
+/// @notice Generates Gnosis Safe batches that harden the ETHFI OFT (`0xe008...fD3f`) on Ethereum,
+/// Optimism, Arbitrum, Base, and Scroll: pin LZ SendUln302 / ReceiveUln302 + set a 4-of-4
+/// required-DVN ULN config (LZ Labs / Nethermind / Horizen / Canary, 45 confirmations).
+///
+/// To avoid `LZ_SameValue()` reverts at execution time, the script forks each chain and skips any
+/// `setSendLibrary` / `setReceiveLibrary` call where the OFT is already custom-pinned to the
+/// target library. The 4-DVN `setConfig` calls (the actual hardening) are always emitted.
 contract EthfiOftSecurityUpgrade is Script, GnosisHelpers {
     address internal constant ETHFI_OFT = 0xe0080d2F853ecDdbd81A643dC10DA075Df26fD3f;
 
@@ -20,6 +32,12 @@ contract EthfiOftSecurityUpgrade is Script, GnosisHelpers {
 
     uint64 internal constant CONFIRMATIONS = 45;
 
+    string internal constant ETH_RPC = "https://mainnet.gateway.tenderly.co";
+    string internal constant OP_RPC = "https://optimism-rpc.publicnode.com";
+    string internal constant ARB_RPC = "https://arb1.arbitrum.io/rpc";
+    string internal constant BASE_RPC = "https://mainnet.base.org";
+    string internal constant SCROLL_RPC = "https://rpc.scroll.io";
+
     function run() external {
         _generateEthereum();
         _generateOptimism();
@@ -29,6 +47,7 @@ contract EthfiOftSecurityUpgrade is Script, GnosisHelpers {
     }
 
     function _generateEthereum() internal {
+        vm.createSelectFork(ETH_RPC);
         address[4] memory dvns = [
             0x589dEDbD617e0CBcB916A9223F4d1300c294236b,
             0xa59BA433ac34D2927232918Ef5B2eaAfcF130BA5,
@@ -53,6 +72,7 @@ contract EthfiOftSecurityUpgrade is Script, GnosisHelpers {
     }
 
     function _generateOptimism() internal {
+        vm.createSelectFork(OP_RPC);
         address[4] memory dvns = [
             0x6A02D83e8d433304bba74EF1c427913958187142,
             0xa7b5189bcA84Cd304D8553977c7C614329750d99,
@@ -77,6 +97,7 @@ contract EthfiOftSecurityUpgrade is Script, GnosisHelpers {
     }
 
     function _generateArbitrum() internal {
+        vm.createSelectFork(ARB_RPC);
         address[4] memory dvns = [
             0x2f55C492897526677C5B68fb199ea31E2c126416,
             0xa7b5189bcA84Cd304D8553977c7C614329750d99,
@@ -101,6 +122,7 @@ contract EthfiOftSecurityUpgrade is Script, GnosisHelpers {
     }
 
     function _generateBase() internal {
+        vm.createSelectFork(BASE_RPC);
         address[4] memory dvns = [
             0x9e059a54699a285714207b43B055483E78FAac25,
             0xcd37CA043f8479064e10635020c65FfC005d36f6,
@@ -125,6 +147,7 @@ contract EthfiOftSecurityUpgrade is Script, GnosisHelpers {
     }
 
     function _generateScroll() internal {
+        vm.createSelectFork(SCROLL_RPC);
         address[4] memory dvns = [
             0xbe0d08a85EeBFCC6eDA0A843521f7CBB1180D2e2,
             0x446755349101cB20c582C224462c3912d3584dCE,
@@ -148,6 +171,8 @@ contract EthfiOftSecurityUpgrade is Script, GnosisHelpers {
         vm.writeJson(json, "./output/ethfi-scroll-SecurityUpgrade.json");
     }
 
+    /// @dev Reads live state on the currently-selected fork to decide whether each setSendLibrary /
+    /// setReceiveLibrary call is needed. Skips calls that would revert with `LZ_SameValue`.
     function _buildBatch(
         string memory chainIdStr,
         address controller,
@@ -157,35 +182,93 @@ contract EthfiOftSecurityUpgrade is Script, GnosisHelpers {
         address[4] memory dvns,
         uint32[] memory peerEids
     ) internal returns (string memory json) {
-        address oft = ETHFI_OFT;
-        string memory safeHex = _toLowerString(addressToHex(controller));
-        json = _getGnosisHeader(chainIdStr, safeHex);
+        json = _getGnosisHeader(chainIdStr, _toLowerString(addressToHex(controller)));
         string memory endpointHex = addressToHex(endpoint);
 
-        for (uint256 i = 0; i < peerEids.length; i++) {
-            string memory sendData = iToHex(
-                abi.encodeWithSignature("setSendLibrary(address,uint32,address)", oft, peerEids[i], sendLib)
-            );
-            json = string.concat(json, _getGnosisTransaction(endpointHex, sendData, "0", false));
-            string memory recvData = iToHex(
-                abi.encodeWithSignature("setReceiveLibrary(address,uint32,address,uint256)", oft, peerEids[i], recvLib, uint256(0))
-            );
-            json = string.concat(json, _getGnosisTransaction(endpointHex, recvData, "0", false));
-        }
+        json = _appendLibraryPins(json, endpoint, endpointHex, ETHFI_OFT, sendLib, recvLib, peerEids);
+        json = _appendDvnConfigs(json, endpointHex, ETHFI_OFT, sendLib, recvLib, dvns, peerEids);
+    }
 
+    function _appendLibraryPins(
+        string memory json,
+        address endpoint,
+        string memory endpointHex,
+        address oft,
+        address sendLib,
+        address recvLib,
+        uint32[] memory peerEids
+    ) internal view returns (string memory) {
+        ILzEndpointReader ep = ILzEndpointReader(endpoint);
+        for (uint256 i = 0; i < peerEids.length; i++) {
+            uint32 eid = peerEids[i];
+            if (ep.isDefaultSendLibrary(oft, eid) || ep.getSendLibrary(oft, eid) != sendLib) {
+                json = string.concat(
+                    json,
+                    _getGnosisTransaction(
+                        endpointHex,
+                        iToHex(abi.encodeWithSignature("setSendLibrary(address,uint32,address)", oft, eid, sendLib)),
+                        "0",
+                        false
+                    )
+                );
+            }
+            (address curRecv, bool recvIsDefault) = ep.getReceiveLibrary(oft, eid);
+            if (recvIsDefault || curRecv != recvLib) {
+                json = string.concat(
+                    json,
+                    _getGnosisTransaction(
+                        endpointHex,
+                        iToHex(
+                            abi.encodeWithSignature(
+                                "setReceiveLibrary(address,uint32,address,uint256)", oft, eid, recvLib, uint256(0)
+                            )
+                        ),
+                        "0",
+                        false
+                    )
+                );
+            }
+        }
+        return json;
+    }
+
+    function _appendDvnConfigs(
+        string memory json,
+        string memory endpointHex,
+        address oft,
+        address sendLib,
+        address recvLib,
+        address[4] memory dvns,
+        uint32[] memory peerEids
+    ) internal pure returns (string memory) {
         bytes memory ulnBytes = _encode4DVNUlnConfig(dvns);
         SetConfigParam[] memory dvnParams = new SetConfigParam[](peerEids.length);
         for (uint256 j = 0; j < peerEids.length; j++) {
             dvnParams[j] = SetConfigParam({eid: peerEids[j], configType: 2, config: ulnBytes});
         }
-
-        string memory sendCfg =
-            iToHex(abi.encodeWithSignature("setConfig(address,address,(uint32,uint32,bytes)[])", oft, sendLib, dvnParams));
-        json = string.concat(json, _getGnosisTransaction(endpointHex, sendCfg, "0", false));
-
-        string memory recvCfg =
-            iToHex(abi.encodeWithSignature("setConfig(address,address,(uint32,uint32,bytes)[])", oft, recvLib, dvnParams));
-        json = string.concat(json, _getGnosisTransaction(endpointHex, recvCfg, "0", true));
+        json = string.concat(
+            json,
+            _getGnosisTransaction(
+                endpointHex,
+                iToHex(
+                    abi.encodeWithSignature("setConfig(address,address,(uint32,uint32,bytes)[])", oft, sendLib, dvnParams)
+                ),
+                "0",
+                false
+            )
+        );
+        json = string.concat(
+            json,
+            _getGnosisTransaction(
+                endpointHex,
+                iToHex(
+                    abi.encodeWithSignature("setConfig(address,address,(uint32,uint32,bytes)[])", oft, recvLib, dvnParams)
+                ),
+                "0",
+                true
+            )
+        );
+        return json;
     }
 
     function _toLowerString(string memory str) internal pure returns (string memory) {
