@@ -11,7 +11,10 @@
   src = "src"
   via_ir = false
 
-  fs_permissions = [{ access = "read-write", path = "./"}]
+  fs_permissions = [
+    { access = "read-write", path = "./"},
+    { access = "read", path = "../3CP-secure"},
+  ]
 
 [profile.ci]
   fuzz = { runs = 256 }
